@@ -1,5 +1,8 @@
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
+
 import click
+
+from icalendar import Calendar, Event
 
 
 @click.command()
@@ -51,7 +54,7 @@ def run(file, start, end, weeks, verbose):
     for item in _calendar:
         day = item[0]
         if (start and day >= p_start) or not start:
-            if (end and day <= p_end) or not end:
+            if not p_end or day <= p_end:
                 calendar.append(item)
 
     print('From %s to %s:' % (p_start, p_end))
@@ -63,6 +66,50 @@ def run(file, start, end, weeks, verbose):
         print('-' * 30)
         for item in calendar:
             print('%s   %s' % item)
+
+    # generate .ics
+
+    # we use the unfilterd calendar (_calendar) and
+    # keep on iterating on NB_WEEKS on a weekly basis for prediction
+    NB_WEEKS = 52
+    last_line = _calendar[-1]
+    next_p = 'A' if last_line[1] == 'S' else 'S'
+    last_date = last_line[0]
+    for _ in range(NB_WEEKS - 1):
+        for d in range(7):
+            last_date += timedelta(days=1)
+            _calendar.append((last_date, next_p))
+        next_p = 'A' if next_p == 'S' else 'S'
+
+    for c_type in ['all', 'A', 'S']:
+        cal = Calendar()
+        cal.add('prodid', '-//Garde Valentin (%s)//bulte.net//' % c_type)
+        cal.add('version', '2.0')
+        cal.add('last-modified', datetime.now())
+
+        current_p = None
+        previous_event = None
+        for (day, p) in _calendar:
+            if not current_p or current_p != p:
+                current_p = p
+                # TODO: works with c_type but not c_type == 'all'
+                if current_p == c_type or c_type == 'all':
+                    event = Event()
+                    event.add('summary', current_p)
+                    event.add('dtstart', day)
+                    if c_type != 'all':
+                        previous_event = None
+                if previous_event:
+                    previous_event.add('dtend', day)
+                    cal.add_component(previous_event)
+                previous_event = event
+            if (day, p) == _calendar[-1]:
+                previous_event.add('dtend', day + timedelta(days=1))
+                cal.add_component(previous_event)
+
+        with open('garde-%s.ics' % c_type, 'wb') as ofile:
+            ofile.write(cal.to_ical())
+
 
 if __name__ == '__main__':
     run()
