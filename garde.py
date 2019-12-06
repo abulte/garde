@@ -5,6 +5,9 @@ import click
 from icalendar import Calendar, Event
 
 
+NB_WEEKS = 20
+
+
 @click.command()
 @click.option('--file', default='./exemple.txt', type=click.Path(exists=True))
 @click.option('--start', default=None)
@@ -13,13 +16,24 @@ from icalendar import Calendar, Event
 @click.option('--verbose/-v', default=False)
 def run(file, start, end, weeks, verbose):
     """
-    Analyse les temps de garde à partir d'un fichier d'entrée.
-    Par défaut, s'arrête une semaine (7 jours) après la dernière date spécifiée.
+    1. Analyse les temps de garde à partir d'un fichier d'entrée.
+    Par défaut, s'arrête une semaine (7 jours) après la dernière date spécifiée
+    et commence à la première date.
+    On peut aussi spécifier `start` et `end` ou `weeks` pour restreindre la fenêtre d'analyse
+    (format iso 2019-12-31).
+
+    2. Génère un fichier `.ics` avec l'*ensemble* du calendrier venant du fichier, plus
+    NB_WEEKS de projection : 1 semaine en alternance à partir du dernier jour spécifié.
+
+    3. Genère un fichier de sortie `.txt` avec une copie du fichier d'entrée plus
+    les projections. Ce fichier devrait servir de fichier d'entrée la fois suivante.
     """
     _calendar = []
 
     if end and weeks:
-        raise Exception('Incompatible options: --end and --weeks')
+        raise click.UsageError('Incompatible options: --end and --weeks')
+
+    # 1. Analyse les temps de garde
 
     with open(file) as ifile:
         lines = ifile.readlines()
@@ -67,11 +81,10 @@ def run(file, start, end, weeks, verbose):
         for item in calendar:
             print('%s   %s' % item)
 
-    # generate .ics
+    # 2. generate .ics
 
     # we use the unfilterd calendar (_calendar) and
     # keep on iterating on NB_WEEKS on a weekly basis for prediction
-    NB_WEEKS = 52
     last_line = _calendar[-1]
     next_p = 'A' if last_line[1] == 'S' else 'S'
     last_date = last_line[0]
@@ -92,7 +105,6 @@ def run(file, start, end, weeks, verbose):
         for (day, p) in _calendar:
             if not current_p or current_p != p:
                 current_p = p
-                # TODO: works with c_type but not c_type == 'all'
                 if current_p == c_type or c_type == 'all':
                     event = Event()
                     event.add('summary', current_p)
@@ -109,6 +121,18 @@ def run(file, start, end, weeks, verbose):
 
         with open('garde-%s.ics' % c_type, 'wb') as ofile:
             ofile.write(cal.to_ical())
+
+    # 3. generate output file w/ predictions
+
+    output_lines = []
+    current_p = None
+    for (day, p) in _calendar:
+        if not current_p or current_p != p:
+            output_lines.append('%s\t%s\n' % (day, p))
+            current_p = p
+    output_file = './output/%s.txt' % date.today().isoformat()
+    with open(output_file, 'w') as ofile:
+        ofile.writelines(output_lines)
 
 
 if __name__ == '__main__':
