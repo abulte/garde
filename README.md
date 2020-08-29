@@ -2,7 +2,7 @@
 
 
 ```shell
-python garde.py --start 2019-12-12 --weeks 4 --verbose
+python garde.py --file input/2019-12-05.txt --start 2019-12-12 --weeks 4 --verbose
 ```
 
 ```
