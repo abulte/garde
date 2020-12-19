@@ -107,6 +107,7 @@ def run(file, start, end, weeks, verbose):
                 current_p = p
                 if current_p == c_type or c_type == 'all':
                     event = Event()
+                    event.add('uid', f'{day}@bulte.net')
                     event.add('summary', current_p)
                     event.add('dtstart', day)
                     if c_type != 'all':
