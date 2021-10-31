@@ -5,7 +5,7 @@ import click
 from icalendar import Calendar, Event
 
 
-NB_WEEKS = 20
+NB_WEEKS = 40
 
 
 @click.command()
@@ -120,7 +120,7 @@ def run(file, start, end, weeks, verbose):
                 previous_event.add('dtend', day + timedelta(days=1))
                 cal.add_component(previous_event)
 
-        with open('garde-%s.ics' % c_type, 'wb') as ofile:
+        with open('calendar/garde-%s.ics' % c_type, 'wb') as ofile:
             ofile.write(cal.to_ical())
 
     # 3. generate output file w/ predictions
